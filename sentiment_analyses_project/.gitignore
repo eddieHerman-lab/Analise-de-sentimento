@@ -1,0 +1,8 @@
+1. **Arquivos gerados automaticamente**:  
+   - `.pyc`, `__pycache__/`, `*.log`, etc.  
+2. **Dados sensíveis ou grandes**:  
+   - `*.csv`, `.env`, `*.sqlite3`, etc.  
+3. **Bibliotecas instaladas**:  
+   - `venv/` (ambientes virtuais), `node_modules/`, etc.  
+4. **Arquivos do sistema operacional**:  
+   - `.DS_Store` (Mac), `Thumbs.db` (Windows). 
