@@ -391,7 +391,7 @@ def plot_topic_distribution(lda_model, corpus, dictionary):
 
 # Função principal
 def main():
-    file_path = "C:/Users/55219/Desktop/Pensamentos Sobre a obra de Durkheim sobre a religião.pdf"
+    file_path = "sentiment_analyses_project/data/Pensamentos _Sobre_a_obra _de _Durkheim _sobre_a_ religião.pdf"
     # Leitura e limpeza do texto,Texto1
     text = read_pdf(file_path)
     The_clean_text = clean_text(text, use_lemmatization=True)
