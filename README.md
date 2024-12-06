@@ -42,10 +42,10 @@ analise-de-sentimento/
 ## Exemplos Visuais
 
 ### Distribuição de Sentimentos
-![Distribuição de Sentimentos](/images/DistribuicaoTopicos.png))
+![Distribuição de Sentimentos](/sentiment_analyses_project/images/DistribuicaoTopicos.png))
 
 ### Palavra Nuvem
-![Word Cloud](/images/durkheimWordcloud.png)
+![Word Cloud](/sentiment_analyses_project/images/durkeimWordcloud.png)
 
 ## Uso do Modelo
 Exemplo de entrada e saída:
