@@ -27,29 +27,54 @@ import seaborn as sns
 #nltk.download('stopwords')
 #nltk.download('wordnet')
 
-# Ler o arquivo PDF
-def read_pdf(file_path):
-    with open(file_path , 'rb') as file:
-        reader = PyPDF2.PdfReader(file)
-        text = ''
-        for page in reader.pages:
-            text += page.extract_text()
-    return text
+# Função para ler e filtrar texto de PDFs
+def process_pdf(file_path):
+    from PyPDF2 import PdfReader
 
+    text = ""
+    try:
+        with open(file_path, 'rb') as file:
+            reader = PdfReader(file)
+            for i, page in enumerate(reader.pages):
+                try:
+                    page_text = page.extract_text()
+                    if page_text and page_text.strip():  # Verifica se a página não está vazia
+                        text += page_text + "\n"
+                    else:
+                        print(f"A página {i + 1} está vazia ou não pode ser lida.")
+                except Exception as e:
+                    print(f"Erro ao processar a página {i + 1}: {e}")
+    except Exception as e:
+        print(f"Erro ao abrir o arquivo PDF: {e}")
+
+    return text
 # Limpeza do texto
 def clean_text(text, use_lemmatization=True):
+    if not text or len(text.strip()) == 0:
+        print("Texto vazio recebido para limpeza.")
+        return []
+
     text = re.sub(r'[^\w\s]', ' ', text)
     text = re.sub(r'\[\d+\]', ' ', text)
     text = re.sub(r'\s+', ' ', text).strip()
     text = text.lower()
+
     tokens = word_tokenize(text)
+
     stop_words_pt = set(stopwords.words('portuguese'))
     stop_words_en = set(stopwords.words('english'))
     stop_words = stop_words_pt.union(stop_words_en)
+
     words = [word for word in tokens if word not in stop_words and len(word) > 2]
+
+
+    if not words:
+        print('Nenhuma palavra restante apos a remoção de stopwords:')
+        return []
 
     if use_lemmatization:
         lemmatizer = WordNetLemmatizer()
         words = [lemmatizer.lemmatize(token) for token in words]
 
     return words
+
