@@ -27,26 +27,50 @@ import seaborn as sns
 #nltk.download('stopwords')
 #nltk.download('wordnet')
 
-# Ler o arquivo PDF
-def read_pdf(file_path):
-    with open(file_path , 'rb') as file:
-        reader = PyPDF2.PdfReader(file)
-        text = ''
-        for page in reader.pages:
-            text += page.extract_text()
-    return text
+# Função para ler e filtrar texto de PDFs
+def process_pdf(file_path):
+    from PyPDF2 import PdfReader
 
+    text = ""
+    try:
+        with open(file_path, 'rb') as file:
+            reader = PdfReader(file)
+            for i, page in enumerate(reader.pages):
+                try:
+                    page_text = page.extract_text()
+                    if page_text and page_text.strip():  # Verifica se a página não está vazia
+                        text += page_text + "\n"
+                    else:
+                        print(f"A página {i + 1} está vazia ou não pode ser lida.")
+                except Exception as e:
+                    print(f"Erro ao processar a página {i + 1}: {e}")
+    except Exception as e:
+        print(f"Erro ao abrir o arquivo PDF: {e}")
+
+    return text
 # Limpeza do texto
 def clean_text(text, use_lemmatization=True):
+    if not text or len(text.strip()) == 0:
+        print("Texto vazio recebido para limpeza.")
+        return []
+
     text = re.sub(r'[^\w\s]', ' ', text)
     text = re.sub(r'\[\d+\]', ' ', text)
     text = re.sub(r'\s+', ' ', text).strip()
     text = text.lower()
+
     tokens = word_tokenize(text)
+
     stop_words_pt = set(stopwords.words('portuguese'))
     stop_words_en = set(stopwords.words('english'))
     stop_words = stop_words_pt.union(stop_words_en)
+
     words = [word for word in tokens if word not in stop_words and len(word) > 2]
+
+
+    if not words:
+        print('Nenhuma palavra restante apos a remoção de stopwords:')
+        return []
 
     if use_lemmatization:
         lemmatizer = WordNetLemmatizer()
@@ -95,9 +119,11 @@ def generate_wordcloud(words):
     plt.close()
 
 # LDA e Coerência
-def find_optimal_number_of_topics(clean_text, start=5, limit=20, step=5):
+def find_optimal_number_of_topics(clean_text, start=2, limit=5, step=1):
     dictionary = Dictionary([clean_text])
+
     corpus = [dictionary.doc2bow(clean_text)]
+
     coherence_values = []
     model_list = []
 
@@ -367,137 +393,171 @@ def plot_sentence_clusters(sentences, labels,X):
    """
 
 
-
-def plot_topic_distribution(lda_model, corpus, dictionary):
+def plot_topic_distribution(lda_model, dictionary, text):
     """
     Plota a distribuição de tópicos nos documentos.
 
     Args:
-    lda_model: Modelo LDA treinado.
-    corpus: Corpus de documentos.
-    dictionary: Dicionário gensim.
+    lda_model: Modelo LDA treinado
+    dictionary: Dicionário gensim
+    text: Texto limpo (lista de palavras)
     """
+    # Criar corpus para o texto
+    bow = dictionary.doc2bow(text)
+
+    # Inicializa a lista para armazenar os pesos de cada tópico
     topic_weights = []
-    for i, topic_dist in enumerate(lda_model[corpus]):
-        topic_weights.append([w for i, w in topic_dist])
+    topic_dist = lda_model.get_document_topics(bow)
+    weights = [0] * lda_model.num_topics
+    for topic_num, weight in topic_dist:
+        weights[topic_num] = weight
+    topic_weights.append(weights)
+
+    # Converte os pesos para um DataFrame
     df = pd.DataFrame(topic_weights).transpose()
-    df.columns = [f'Documento {i}' for i in range(len(df.columns))]
-    df.index = [f'Tópico {i}' for i in range(len(df.index))]
+    df.columns = ['Documento']
+
+    # Extrai os principais termos de cada tópico
+    topic_names = []
+    for i in range(lda_model.num_topics):
+        terms = lda_model.show_topic(i, topn=3)
+        terms_str = ", ".join([term for term, _ in terms])
+        topic_names.append(f"Tópico {i}: {terms_str}")
+
+    df.index = topic_names
+
+    # Plotagem
     plt.figure(figsize=(12, 8))
-    sns.heatmap(df, annot=True, cmap='YlOrRd')
-    plt.title('Distribuição de Tópicos nos Documentos')
+    sns.heatmap(df, annot=True, cmap='YlOrRd', cbar_kws={'label': 'Peso do Tópico'})
+    plt.title('Distribuição de Tópicos no Documento', fontsize=16)
+    plt.ylabel('Tópicos', fontsize=12)
+    plt.xlabel('Documento', fontsize=12)
+    plt.tight_layout()
     plt.show()
 
 
-# Função principal
-def main():
-    file_path = "sentiment_analyses_project/data/Pensamentos _Sobre_a_obra _de _Durkheim _sobre_a_ religião.pdf"
-    # Leitura e limpeza do texto,Texto1
-    text = read_pdf(file_path)
-    The_clean_text = clean_text(text, use_lemmatization=True)
+def process_document(file_path, document_name=""):
+    """Processa um único documento e retorna seus dados processados"""
+    text = process_pdf(file_path)
+    if not text.strip():
+        print(f"{document_name} PDF está vazio ou não foi possível extrair o texto.")
+        return None
 
-    # Texto 2 leitura e limpeza:
-    file_path2 = "C:/Users/55219/Desktop/Durkeim_ArtigoSobrereligiao.pdf"
-    text2= read_pdf(file_path2)
-    clean_text2 = clean_text(text2,use_lemmatization= True)
+    print(f"Texto extraído com sucesso do {document_name} PDF!")
+    clean_words = clean_text(text, use_lemmatization=True)
 
-    # Análise de frequência de palavras(texto 1)
-    word_freq = word_frequency(The_clean_text)
-    print("Frequência das palavras (Top 20):")
-    print(word_freq.head(20))
+    if not clean_words:
+        print(f"Nenhuma palavra restante após limpeza no {document_name}")
+        return None
 
-    # Geração da nuvem de palavras, texto 1
-    generate_wordcloud(The_clean_text)
+    return {
+        'text': text,
+        'clean_words': clean_words,
+        'word_freq': word_frequency(clean_words),
+        'sentiment': sentiment_analysis(clean_words, vader=True),
+        'model_data': find_optimal_number_of_topics(clean_words),
+        'dictionary': Dictionary([clean_words])
+    }
 
-    # Análise de sentimentos
-    sentiment = sentiment_analysis(The_clean_text,vader=True)
-    sentiment2= sentiment_analysis(clean_text2,vader=True)
-    print(f"Sentimento geral do  primeiro texto (Pensamentos sobre a obra de Durkeim): {sentiment}")
-    print(f'Sentimento geral do segundo texto ( Durkheim, Rachel Weiss), {sentiment2}')
 
-    #Modelagem de topicos LDA
-    # Encontrar o número ideal de tópicos(Modelagem lda para o Texto 1)
-    model_list, coherence_values = find_optimal_number_of_topics(The_clean_text)
+def analyze_document(doc_data, doc_name=""):
+    """Realiza análises em um único documento"""
+    if not doc_data:
+        return None
+
+    print(f"\n=== Análise do {doc_name} ===")
+    print(f"Frequência de palavras (Top 20):")
+    print(doc_data['word_freq'].head(20))
+
+    generate_wordcloud(doc_data['clean_words'])
+    print(f"Sentimento geral: {doc_data['sentiment']}")
+
+    model_list, coherence_values = doc_data['model_data']
     plot_coherence(coherence_values)
+
     optimal_model_index = coherence_values.index(max(coherence_values))
     lda_model = model_list[optimal_model_index]
-    dictionary = Dictionary([The_clean_text])
 
-
-    topics = lda_model.print_topics(num_words=5)
     print("Tópicos principais:")
-    for topic in topics:
+    for topic in lda_model.print_topics(num_words=5):
         print(topic)
 
+    # Análise de rede
+    G = word_network_with_weights(doc_data['clean_words'], lda_model, doc_data['dictionary'])
+    print(f"Rede: {G.number_of_nodes()} nós, {G.number_of_edges()} arestas")
 
-    #Modelagem de topicos LDa (Texto 2)
-    model_list2, coherence_values2 = find_optimal_number_of_topics(clean_text2)
-    plot_coherence(coherence_values2)
-    optimal_model_index2 = coherence_values2.index(max(coherence_values2))
-    lda_model2 = model_list2[optimal_model_index2]
-    dictionary2 = Dictionary([clean_text2])
+    G_filtered = filter_edges_by_weight(
+        filter_nodes_by_degree_centrality(G, threshold=0.01),
+        weight_threshold=0.5
+    )
 
-    # Comparacao de documentos com base na similariedade dos topicos
-    similarity= compare_documents(The_clean_text,clean_text2,lda_model,lda_model2,dictionary,dictionary2)
-    print(f' Similaridade entre os documentos textuais: {similarity:.4f}')
+    plot_word_network_interactive(G_filtered)
+    plot_topic_distribution(lda_model, doc_data['dictionary'],doc_data['clean_words'])
 
-    #Plotagem de mudanca de sentimentos ao longo do texto:
-    sentiment_over_time(The_clean_text,window_size=True)
-    sentiment_over_time(clean_text2,window_size=True)
+    # Análise temporal e clustering
+    sentiment_over_time(doc_data['clean_words'], window_size=True)
+    keywords = extract_keywords_tfidf(' '.join(doc_data['clean_words']))
+    print("Palavras-chave extraídas:", keywords)
 
-    # Criação da rede de palavras com pesos baseados em LDA
-    G = word_network_with_weights(The_clean_text, lda_model, dictionary)
-    print(f"Número de nós na rede: {G.number_of_nodes()}")
-    print(f"Número de arestas na rede: {G.number_of_edges()}")
-
-    # 1. Filtragem de centralidade de grau
-    G_filtered = filter_nodes_by_degree_centrality(G, threshold=0.01)
-
-    # 2. Filtragem de arestas por peso
-    G_filtered = filter_edges_by_weight(G_filtered, weight_threshold=0.5)
-
-    # 3. Adicionando as comunidades como atributo nos nós
-    communities = detect_comunnities_louvain(G_filtered)
-
-    # 4. Filtragem do grafo para focar nas principais comunidades
-    G_top_communities = filter_graph_by_community(G_filtered, communities, top_n=3)
-
-    # 5. Visualização interativa
-    plot_word_network_interactive(G_top_communities)
-    plot_word_network_interactive_with_size(G_top_communities)
-
-    # Cálculo da centralidade de grau
-    degree_centrality = compute_degree_centrality(G)
-    print("Centralidade de Grau das palavras:")
-    for word, centrality in sorted(degree_centrality.items(), key=lambda item: item[1], reverse=True)[:10]:
-        print(f"{word}: {centrality:.4f}")
-
-    # Detecção de comunidades usando Girvan-Newman
-    communities_gn = detect_communities(G_filtered, num_communities=5)
+    communities = detect_communities(G_filtered, num_communities=5)
     print("Comunidades detectadas:")
-    for idx, community in enumerate(communities_gn, 1):
+    for idx, community in enumerate(G_filtered, 1):
         print(f"Comunidade {idx}: {community}")
 
-# Extração de palavras-chave
-    keywords = extract_keywords_tfidf(' '.join(The_clean_text))
-    print("Palavras-chave extraídas (TF-IDF):")
-    print(keywords)
-
-    # Clusterização de sentenças
-    sentences, labels = cluster_sentences(text,n_clusters=3)
-    # Gerar a matriz TF-IDF novamente para reduzir a dimensionalidade
+    sentences, labels = cluster_sentences(doc_data['text'], n_clusters=3)
     vectorizer = TfidfVectorizer(stop_words='english')
     X = vectorizer.fit_transform(sentences)
-
-    # Plotar os clusters
     plot_sentence_clusters(sentences, labels, X)
 
-    # Visualização da distribuição de tópicos
-    corpus1 = [dictionary.doc2bow(The_clean_text)]
-    plot_topic_distribution(lda_model, corpus1, dictionary)
+    return {
+        'lda_model': lda_model,
+        'dictionary': doc_data['dictionary'],
+        'clean_words': doc_data['clean_words']
+    }
+
+
+def compare_documents_analysis(doc1_data, doc2_data):
+    """Realiza análises comparativas entre dois documentos"""
+    if not (doc1_data and doc2_data):
+        print("Impossível comparar documentos - dados ausentes")
+        return
+
+    similarity = compare_documents(
+        doc1_data['clean_words'],
+        doc2_data['clean_words'],
+        doc1_data['lda_model'],
+        doc2_data['lda_model'],
+        doc1_data['dictionary'],
+        doc2_data['dictionary']
+    )
+    print(f"\nSimilaridade entre os documentos: {similarity:.4f}")
+
+
+def main():
+    file_paths = {
+        "Documento 1": "C:/Users/55219/Desktop/DURKHEIM E AS FORMAS ELEMENTARES.Limpo.pdf",
+        "Documento 2": "C:/Users/55219/Desktop/Tratado_da_Natureza_Humana_David_Hume.pdf"
+    }
+
+    # Processamento inicial
+    processed_docs = {
+        name: process_document(path, name)
+        for name, path in file_paths.items()
+    }
+
+    # Análise individual
+    analyzed_docs = {
+        name: analyze_document(doc_data, name)
+        for name, doc_data in processed_docs.items()
+    }
+
+    # Análise comparativa
+    if all(analyzed_docs.values()):
+        compare_documents_analysis(
+            analyzed_docs["Documento 1"],
+            analyzed_docs["Documento 2"]
+        )
 
 
 if __name__ == "__main__":
     main()
-
-
