@@ -13,11 +13,6 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 def generate_wordcloud(words):
-  logging.info("Gerando nuvem de palavras...")
-    if not isinstance(words, list):
-        logging.error("Erro: entrada não é uma lista.")
-        return
-    # Continuando com a funcao....
     text = ' '.join(words)
     if len(text.split()) == 0:
         print("O texto está vazio após a limpeza. A nuvem de palavras não pode ser gerada.")
@@ -30,7 +25,6 @@ def generate_wordcloud(words):
     plt.show()
     plt.close()
 
-
 def plot_coherence(coherence_values, start=5, limit=20, step=5):
     x = range(start, limit, step)
     plt.plot(x, coherence_values)
@@ -39,7 +33,8 @@ def plot_coherence(coherence_values, start=5, limit=20, step=5):
     plt.title("Coerência em relação ao número de tópicos")
     plt.show()
 
-
+#Predicao de sentimentos ao longo do tempo no texto
+# Criacao de uma janela movel
 def sentiment_over_time(text,window_size=100,window_topic=False):
     chunks= [text[i:i+window_size]for i in range(0,len(text))]
     sentiments= [sentiment_analysis(chunk) for chunk in chunks]
@@ -90,8 +85,6 @@ def plot_word_network_interactive(G):
     node_trace['text'] = list(G.nodes())
     fig = go.Figure(data=[edge_trace, node_trace], layout=go.Layout(title='<br>Network graph made with Python', titlefont_size=16, showlegend=False, hovermode='closest', margin=dict(b=0, l=0, r=0, t=40), xaxis=dict(showgrid=False, zeroline=False), yaxis=dict(showgrid=False, zeroline=False)))
     fig.show()
-
-
 def plot_word_network_interactive_with_size(G):
     pos = nx.spring_layout(G)
     centrality = nx.degree_centrality(G)
@@ -137,7 +130,6 @@ def plot_word_network_interactive_with_size(G):
 
     fig.show()
 
-
 def plot_sentence_clusters(sentences, labels,X):
     # Reduzir a dimensionalidade para 2D
     pca = PCA(n_components=2)
@@ -160,27 +152,44 @@ def plot_sentence_clusters(sentences, labels,X):
    """
 
 
-
-def plot_topic_distribution(lda_model, corpus, dictionary):
-   """
+def plot_topic_distribution(lda_model, dictionary, text):
+    """
     Plota a distribuição de tópicos nos documentos.
 
     Args:
-        lda_model (gensim.models.LdaModel): Modelo LDA treinado.
-        corpus (list): Lista de documentos no formato de corpus.
-        dictionary (gensim.corpora.Dictionary): Dicionário mapeando IDs de palavras para palavras.
-
-    Returns:
-        None
+    lda_model: Modelo LDA treinado
+    dictionary: Dicionário gensim
+    text: Texto limpo (lista de palavras)
     """
-    topic_weights = []
-    for i, topic_dist in enumerate(lda_model[corpus]):
-        topic_weights.append([w for i, w in topic_dist])
-    df = pd.DataFrame(topic_weights).transpose()
-    df.columns = [f'Documento {i}' for i in range(len(df.columns))]
-    df.index = [f'Tópico {i}' for i in range(len(df.index))]
-    plt.figure(figsize=(12, 8))
-    sns.heatmap(df, annot=True, cmap='YlOrRd')
-    plt.title('Distribuição de Tópicos nos Documentos')
-    plt.show()
+    # Criar corpus para o texto
+    bow = dictionary.doc2bow(text)
 
+    # Inicializa a lista para armazenar os pesos de cada tópico
+    topic_weights = []
+    topic_dist = lda_model.get_document_topics(bow)
+    weights = [0] * lda_model.num_topics
+    for topic_num, weight in topic_dist:
+        weights[topic_num] = weight
+    topic_weights.append(weights)
+
+    # Converte os pesos para um DataFrame
+    df = pd.DataFrame(topic_weights).transpose()
+    df.columns = ['Documento']
+
+    # Extrai os principais termos de cada tópico
+    topic_names = []
+    for i in range(lda_model.num_topics):
+        terms = lda_model.show_topic(i, topn=3)
+        terms_str = ", ".join([term for term, _ in terms])
+        topic_names.append(f"Tópico {i}: {terms_str}")
+
+    df.index = topic_names
+
+    # Plotagem
+    plt.figure(figsize=(12, 8))
+    sns.heatmap(df, annot=True, cmap='YlOrRd', cbar_kws={'label': 'Peso do Tópico'})
+    plt.title('Distribuição de Tópicos no Documento', fontsize=16)
+    plt.ylabel('Tópicos', fontsize=12)
+    plt.xlabel('Documento', fontsize=12)
+    plt.tight_layout()
+    plt.show()
