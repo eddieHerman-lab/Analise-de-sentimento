@@ -535,8 +535,8 @@ def compare_documents_analysis(doc1_data, doc2_data):
 
 def main():
     file_paths = {
-        "Documento 1": "C:/Users/55219/Desktop/DURKHEIM E AS FORMAS ELEMENTARES.Limpo.pdf",
-        "Documento 2": "C:/Users/55219/Desktop/Tratado_da_Natureza_Humana_David_Hume.pdf"
+        "Documento 1": "data/DURKHEIM E AS FORMAS ELEMENTARES.Limpo.pdf",
+        "Documento 2": "data/Tratado_da_Natureza_Humana_David_Hume.pdf"
     }
 
     # Processamento inicial
